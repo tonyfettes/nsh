@@ -1,0 +1,2 @@
+#include "nsh/diagnosis.h"
+
