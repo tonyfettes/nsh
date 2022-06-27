@@ -1,18 +1,7 @@
-nsh_parse_src = files([
-  'common.c',
-  'name.c',
-  'operator.c',
-  'delimiter.c',
-  'parameter.c',
-  'segment.c',
-  'word.c',
-  'redirect.c',
-  'component.c',
-  'simple.c',
-  'pipeline.c',
-  'statement.c',
-  'block.c',
-  'compound.c',
-  'loop.c',
-  'command.c',
-])
+nsh_parse = {}
+
+subdir('posix')
+
+nsh += {
+  'parse': nsh_parse
+}

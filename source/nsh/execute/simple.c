@@ -46,7 +46,8 @@ static bool attr_destroy(attr_t *attr) {
   return (rc == 0) ? true : (throw_system(rc), false);
 }
 
-static bool fact_setup(fact_t *fact, struct stack const *redirect_stack) {
+static bool setup_fact(fact_t *fact,
+                       struct stack const *redirect_stack) {
   struct redirect *redirect = redirect_stack->data;
   size_t size = redirect_stack->size / sizeof(struct redirect);
   for (size_t i = 0; i < size; i++) {
@@ -68,7 +69,7 @@ static bool fact_setup(fact_t *fact, struct stack const *redirect_stack) {
   return true;
 }
 
-static bool argv_setup(struct stack *argv_stack,
+static bool setup_argv(struct stack *argt,
                        struct simple const *simple) {
   struct word *argument = simple->argument.data;
   size_t size = simple->argument.size / sizeof(struct word);
@@ -81,50 +82,46 @@ static bool argv_setup(struct stack *argv_stack,
       break;
     case word_plain:
       data = string_data(&argument[i].plain);
-      try(stack_push(argv_stack, &data, sizeof(char *)));
+      try(stack_push(argt, &data, sizeof(char *)));
       break;
     case word_field:
       field = argument[i].field.data;
       size = argument[i].field.size;
       for (size_t j = 0; j < size; j++) {
         data = string_data(&field[j]);
-        try(stack_push(argv_stack, &data, sizeof(char *)));
+        try(stack_push(argt, &data, sizeof(char *)));
       }
       break;
     }
   }
   data = NULL;
-  try(stack_push(argv_stack, &data, sizeof(char *)));
+  try(stack_push(argt, &data, sizeof(char *)));
   return true;
 }
 
-static bool envp_setup(struct stack *envp, struct stack *envs,
+static bool setup_envp(struct stack *envt, struct stack *envs,
                        struct simple const *simple) {
-  todo("Setup environment variable before execution");
   for (char **env = environ; *env; env++) {
-    stack_push(envp, env, sizeof(char *));
+    stack_push(envt, env, sizeof(char *));
   }
   struct environment *ienv = simple->environment.data;
-  char **oenv = envp->data;
+  char **oenv = envt->data;
   for (size_t i = 0; i < simple->environment.size / sizeof(*ienv); i++) {
     assert(ienv[i].value.type == word_plain);
     bool found = false;
     try(stack_alloc(envs, sizeof(struct string)));
-    struct string *nenv = stack_tail(envs, sizeof(struct string));
+    struct string *nenv = stack_tail(envs, 0);
     string_init(nenv);
     if (!string_append(nenv, ienv[i].name)) {
-      string_destroy(nenv);
-      return false;
+      goto return_nenv;
     }
     if (!string_putc(nenv, '=')) {
-      string_destroy(nenv);
-      return false;
+      goto return_nenv;
     }
     if (!string_append(nenv, ienv[i].value.plain)) {
-      string_destroy(nenv);
-      return false;
+      goto return_nenv;
     }
-    for (size_t j = 0; j < envp->size / sizeof(*oenv); j++) {
+    for (size_t j = 0; j < envt->size / sizeof(*oenv); j++) {
       size_t len = strchr(oenv[j], '=') - oenv[j];
       if (len != ienv[i].name.size ||
           strncmp(oenv[j], string_data(&ienv[i].name), len) != 0) {
@@ -136,20 +133,25 @@ static bool envp_setup(struct stack *envp, struct stack *envs,
       break;
     }
     if (!found) {
-      if (!stack_alloc(envp, sizeof(char *))) {
-        string_destroy(nenv);
-        return false;
+      if (!stack_alloc(envt, sizeof(char *))) {
+        goto return_nenv;
       }
-      char **envp_tail = stack_tail(envp, 0);
+      char **envp_tail = stack_tail(envt, 0);
       *envp_tail = string_data(nenv);
-      assert(stack_bump(envp, sizeof(char *)));
+      assert(stack_bump(envt, sizeof(char *)));
       assert(stack_bump(envs, sizeof(struct string)));
     }
-  }
-  char *null = NULL;
-  if (!stack_push(envp, &null, sizeof(char *))) {
+    continue;
+
+  return_nenv:
+    string_destroy(nenv);
     return false;
   }
+  char *null = NULL;
+  if (!stack_push(envt, &null, sizeof(char *))) {
+    return false;
+  }
+  return true;
 }
 
 bool execute_simple(struct simple const *simple,
@@ -157,31 +159,31 @@ bool execute_simple(struct simple const *simple,
   bool ok = true;
   fact_t fact;
   try(fact_init(&fact));
-  if (!(ok = fact_setup(&fact, redirect_stack))) {
+  if (!(ok = setup_fact(&fact, redirect_stack))) {
     goto return_fact;
   }
 
-  // Stack of `char *`
-  struct stack argv_stack;
-  stack_init(&argv_stack);
-  if (!(ok = argv_setup(&argv_stack, simple))) {
+  struct stack argt;
+  stack_init(&argt);
+  if (!(ok = setup_argv(&argt, simple))) {
     goto return_argv;
   }
-  char *const *argv = argv_stack.data;
+  char *const *argv = argt.data;
 
-  struct stack envp;
-  stack_init(&envp);
+  struct stack envt;
+  stack_init(&envt);
   struct stack envs;
   stack_init(&envs);
-  if (!(ok = envp_setup(&envp, &envs, simple))) {
+  if (!(ok = setup_envp(&envt, &envs, simple))) {
     goto return_envp;
   }
+  char *const *envp = envt.data;
 
   attr_t attr;
   try(attr_init(&attr));
 
   pid_t pid;
-  int rc = posix_spawnp(&pid, argv[0], &fact, &attr, argv, envp.data);
+  int rc = posix_spawnp(&pid, argv[0], &fact, &attr, argv, envp);
   if (rc != 0) {
     ok = false;
     throw_system(rc);
@@ -201,10 +203,10 @@ return_envp:
     string_destroy(&env[i]);
   }
   stack_destroy(&envs);
-  stack_destroy(&envp);
+  stack_destroy(&envt);
 
 return_argv:
-  stack_destroy(&argv_stack);
+  stack_destroy(&argt);
 
 return_fact:
   fact_destroy(&fact);

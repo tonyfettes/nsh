@@ -1,8 +1,11 @@
 #ifndef NSH_LOG_H
 #define NSH_LOG_H
 
+#include "nsh/location.h"
+
 enum log_level {
   log_level_trace,
+  log_level_fixme,
   log_level_debug,
   log_level_info,
   log_level_warn,
@@ -10,18 +13,18 @@ enum log_level {
   log_level_fatal,
 };
 
-void log_level(enum log_level level, char const *restrict format, ...);
+void log_level_at(struct location location, enum log_level level,
+                  char const *restrict format, ...);
 
-void log_trace(char const *restrict format, ...);
+#define log_level(level, ...)                                          \
+  log_level_at(location(), log_level_##level, __VA_ARGS__)
 
-void log_debug(char const *restrict format, ...);
-
-void log_info(char const *restrict format, ...);
-
-void log_warn(char const *restrict format, ...);
-
-void log_error(char const *restrict format, ...);
-
-void log_fatal(char const *restrict format, ...);
+#define log_trace(...) log_level(trace, __VA_ARGS__)
+#define log_fixme(...) log_level(fixme, __VA_ARGS__)
+#define log_debug(...) log_level(debug, __VA_ARGS__)
+#define log_info(...) log_level(info, __VA_ARGS__)
+#define log_warn(...) log_level(warn, __VA_ARGS__)
+#define log_error(...) log_level(error, __VA_ARGS__)
+#define log_fatal(...) log_level(fatal, __VA_ARGS__)
 
 #endif // NSH_LOG_H

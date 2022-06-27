@@ -18,6 +18,9 @@ void simple_clear(struct simple *simple);
 
 void simple_expand(struct simple *simple);
 
+bool simple_execute(struct simple const *simple,
+                    struct stack const *redirect);
+
 void simple_destroy(struct simple *simple);
 
 #endif // NSH_SIMPLE_H

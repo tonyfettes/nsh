@@ -49,6 +49,12 @@ void word_destroy(struct word *word) {
   word_init(word);
 }
 
+bool word_push(struct word *word, struct segment *segment) {
+  try(stack_push(&word->segment, segment, sizeof(*segment)));
+  segment_init(segment);
+  return true;
+}
+
 bool word_putc(struct word *word, char ch) {
   struct segment *segment;
   segment = stack_tail(&word->segment, sizeof(struct segment));

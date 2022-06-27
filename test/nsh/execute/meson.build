@@ -1,11 +1,7 @@
-nsh_execute_test = [
-  'simple',
-]
-
-foreach name : nsh_execute_test
+foreach name : ['simple']
   test('execute / ' + name,
     executable(name,
       files(name + '.c'),
-      dependencies: nsh_dep),
+      dependencies: nsh['core']),
     suite: ['unit test'])
 endforeach

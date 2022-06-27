@@ -24,7 +24,7 @@ noreturn void panic_at(struct location location,
   va_list args;
   va_start(args, format);
   vfprintf(stderr, format, args);
-  fputc('\n', stderr);
   va_end(args);
+  fputc('\n', stderr);
   exit(EXIT_FAILURE);
 }
