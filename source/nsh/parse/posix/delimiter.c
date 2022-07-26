@@ -5,18 +5,15 @@
 #include <ctype.h>
 
 bool is_delimiter(struct parse *parse, char ch) {
-  return is_operator(ch)
-    || isblank(ch)
-    || ch == '\0'
-    || ch == '`'
-    || (parse->parameter_level && ch == '}');
+  return is_operator(ch) ||
+         isblank(ch) || 
+         ch == '`' ||
+         (parse->parameter_level && ch == '}');
 }
 
 bool parse_delimiter(struct parse *restrict parse) {
   char c;
-  if (!parse_peek(parse, &c)) {
-    return false;
-  }
+  parse_peek(parse, &c);
   if (!is_delimiter(parse, c)) {
     stack_push(&parse->diagnosis, &(struct diagnosis) {
       .level = diagnosis_error,
@@ -40,7 +37,7 @@ bool parse_delimiter(struct parse *restrict parse) {
 
 bool parse_blank(struct parse *parse) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   while (isblank(c)) {
     try(parse_bump_peek(parse, &c));
   }

@@ -1,4 +1,5 @@
 #include "nsh/parse/posix/common.h"
+#include "nsh/math.h"
 
 int error_parse = -1;
 
@@ -29,32 +30,59 @@ void parse_destroy(struct parse *parse) {
   stack_destroy(&parse->diagnosis);
 }
 
-bool parse_peek(struct parse *parse, char *ch) {
+void parse_peek_by(struct parse *parse, char *restrict target,
+                   string_size_t *size) {
   assert(parse->track.size >= sizeof(struct track));
-  struct track track;
-  stack_back(&parse->track, &track, sizeof(struct track));
-  char const *data = string_data(&track.value);
-  *ch = data[track.index];
-  return true;
+  size_t done = 0;
+  struct track *iter = stack_tail(&parse->track, 0);
+  struct track *head = stack_head(&parse->track, 0);
+  while (done < *size && iter != head) {
+    struct track *track = iter - 1;
+    char const *data = string_data(&track->value);
+    size_t copy_size = *size - done;
+    if (track->value.size < copy_size) {
+      copy_size = track->value.size;
+    }
+    memory_copy(target, data + track->index, copy_size);
+    done += copy_size;
+    // Decrement `iter`.
+    iter = track;
+  }
+  *size = done;
 }
 
-bool parse_bump(struct parse *parse) {
+void parse_peek(struct parse *parse, char *restrict ch) {
+  string_size_t size = 1;
+  parse_peek_by(parse, ch, &size);
+  assert(size == 1);
+}
+
+bool parse_bump_by(struct parse *parse, string_size_t size) {
   assert(parse->track.size >= sizeof(struct track));
-  struct track *track = stack_tail(&parse->track, sizeof(struct track));
-  char const *s = string_data(&track->value);
-  if (parse->track.size == sizeof(struct track)) {
-    if (s[track->index] == '\n') {
-      parse->location.line++;
-      parse->location.column = 0;
-    } else if (s[track->index] == '\0') {
-      assert(s[track->index] != '\0');
+  struct track *iter = stack_tail(&parse->track, 0);
+  while (size && iter != stack_head(&parse->track, 0)) {
+    struct track *track = iter - 1;
+    char const *s = string_data(&track->value);
+    if (track == stack_head(&parse->track, 0)) {
+      while (size) {
+        if (s[track->index] == '\n') {
+          parse->location.line++;
+          parse->location.column = 0;
+        } else {
+          parse->location.column++;
+        }
+        track->index++;
+        size--;
+        if (s[track->index] == '\0') {
+          todo("Reading input from stdin when parsing needs "
+               "continuation");
+        }
+      }
     } else {
-      parse->location.column++;
-    }
-    track->index++;
-  } else {
-    track->index++;
-    if (s[track->index] == '\0') {
+      while (size && s[track->index]) {
+        track->index++;
+        size--;
+      }
       track_destroy(track);
       parse->track.size -= sizeof(struct track);
     }
@@ -62,9 +90,22 @@ bool parse_bump(struct parse *parse) {
   return true;
 }
 
-bool parse_bump_peek(struct parse *restrict parse, char *ch) {
+bool parse_bump(struct parse *parse) {
+  return parse_bump_by(parse, 1);
+}
+
+bool parse_bump_peek(struct parse *parse, char *ch) {
   try(parse_bump(parse));
-  return parse_peek(parse, ch);
+  parse_peek(parse, ch);
+  return true;
+}
+
+bool parse_read(struct parse *parse, char *restrict target,
+                string_size_t *size) {
+  parse_peek_by(parse, target, size);
+  // We only bump up input stream by number of bytes read in. This
+  // allows users to control whether to issue a 
+  return parse_bump_by(parse, *size);
 }
 
 // bool parse_expect(struct parse *restrict parse,

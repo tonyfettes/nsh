@@ -5,38 +5,33 @@
 #include "nsh/string.h"
 #include "nsh/stack.h"
 
-struct while_loop {
+struct loop {
+  enum {
+    loop_while,
+    loop_until,
+  } type;
   struct block condition;
   struct block body;
 };
 
-void while_loop_init(struct while_loop *while_loop);
+void loop_init(struct loop *loop);
 
-void while_loop_clear(struct while_loop *while_loop);
+void loop_clear(struct loop *loop);
 
-void while_loop_destroy(struct while_loop *while_loop);
+void loop_destroy(struct loop *loop);
 
-struct until_loop {
-  struct block condition;
-  struct block body;
-};
-
-void until_loop_init(struct until_loop *until_loop);
-
-void until_loop_clear(struct until_loop *until_loop);
-
-void until_loop_destroy(struct until_loop *until_loop);
-
-struct for_loop {
+struct for_in {
   struct string name;
   struct stack word_list;
   struct block body;
 };
 
-void for_loop_init(struct for_loop *for_loop);
+void for_in_init(struct for_in *for_in);
 
-void for_loop_clear(struct for_loop *for_loop);
+void for_in_clear(struct for_in *for_in);
 
-void for_loop_destroy(struct for_loop *for_loop);
+bool for_in_execute(struct for_in for_in, struct stack *job);
+
+void for_in_destroy(struct for_in *for_in);
 
 #endif // NSH_LOOP_H

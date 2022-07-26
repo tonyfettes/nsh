@@ -1,7 +1,7 @@
 #ifndef NSH_STACK_H
 #define NSH_STACK_H
 
-#include "nsh/common.h"
+#include <stdbool.h>
 
 typedef unsigned int stack_size_t;
 
@@ -21,11 +21,17 @@ void stack_clear(struct stack *stack);
 // Free the space `stack` holds, if any.
 void stack_destroy(struct stack *stack);
 
+void *stack_head(struct stack *stack, stack_size_t size);
+
 void *stack_tail(struct stack *stack, stack_size_t size);
+
+bool stack_reserve(struct stack *stack, stack_size_t size);
 
 // Ensure there are at least `size` bytes of space available after
 // the tail of `stack`.
 bool stack_alloc(struct stack *stack, stack_size_t size);
+
+bool stack_resize(struct stack *stack, stack_size_t size);
 
 // Increase `stack->size` by `size`, realloc if necessary.
 bool stack_bump(struct stack *stack, stack_size_t size);
@@ -44,5 +50,11 @@ void stack_back(struct stack *stack, void *restrict target,
 
 void stack_pop(struct stack *stack, void *restrict target,
                stack_size_t size);
+
+void stack_insert(struct stack *stack, stack_size_t position,
+                  void const *restrict source, stack_size_t size);
+
+void stack_remove(struct stack *stack, stack_size_t position,
+                  void *restrict source, stack_size_t size);
 
 #endif // NSH_STACK_H

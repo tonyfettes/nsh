@@ -15,9 +15,8 @@ struct command {
     command_simple,
     command_brace,
     command_subshell,
-    command_while_loop,
-    command_until_loop,
-    command_for_loop,
+    command_loop,
+    command_for_in,
     command_function,
   } type;
   union {
@@ -25,9 +24,8 @@ struct command {
     struct simple simple;
     struct brace brace;
     struct subshell subshell;
-    struct while_loop while_loop;
-    struct until_loop until_loop;
-    struct for_loop for_loop;
+    struct loop loop;
+    struct for_in for_in;
     struct function *function;
   };
   // Stack of `struct redirect`.

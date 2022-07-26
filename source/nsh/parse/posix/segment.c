@@ -15,7 +15,7 @@ bool is_expansion(char ch) {
 
 bool parse_segment(struct parse *parse, struct segment *segment) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   switch (c) {
   case '{':
     try(parse_bump(parse));
@@ -31,7 +31,7 @@ bool parse_segment(struct parse *parse, struct segment *segment) {
       segment_select(segment, segment_command);
       try(parse_command(parse, &segment->command));
       try(parse_blank(parse));
-      try(parse_peek(parse, &c));
+      parse_peek(parse, &c);
       if (c != ')') {
         try(stack_push(&parse->diagnosis, &(struct diagnosis) {
           .level = diagnosis_error,

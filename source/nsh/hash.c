@@ -1,35 +1,43 @@
 #include "nsh/hash.h"
 
-const int error_hash = 0;
+char const *error_hash(int code) {
+  static char const *const description[] = {
+    [error_hash_not_exist] = "No such string in hash table",
+    [error_hash_already_exist] = "String exists",
+  };
+  return description[code];
+}
 
-static hash_size_t hash_calc(struct string name) {
+static bool should_grow(struct hash hash) {
+  return (hash.size + 1) > (hash.capacity * 3 / 4);
+}
+
+static hash_size_t calculate(char const *key) {
   size_t hash = 0;
-  char const *data = string_data(&name);
-  for (size_t i = 0; data[i]; i++) {
-    hash = hash * 131 + data[i];
+  for (size_t i = 0; key[i]; i++) {
+    hash = hash * 131 + key[i];
   }
   return hash;
 }
 
-static hash_size_t find_key(struct hash const *hash,
-                            hash_size_t hval, struct string key) {
-  struct hash_entry *entry = hash->entry;
-  hash_size_t pos = hval % hash->capacity;
+static hash_size_t find_key(struct hash hash, hash_size_t hval,
+                            struct string key) {
+  struct hash_entry *entry = hash.entry;
+  hash_size_t pos = hval % hash.capacity;
   for (hash_size_t i = 1; entry[pos].type != hash_empty; i++) {
-    if (string_equal(entry[pos].key, key)) {
+    if (strcmp(entry[pos].key.data, string_data(&key)) == 0) {
       break;
     }
-    pos = (pos + i * i) % hash->capacity;
+    pos = (pos + i * i) % hash.capacity;
   }
   return pos;
 }
 
-static hash_size_t find_slot(struct hash const *hash,
-                             hash_size_t hval) {
-  struct hash_entry *entry = hash->entry;
-  size_t pos = hval % hash->capacity;
-  for (size_t i = 1; entry[pos].type == hash_valid; i++) {
-    pos = (pos + i * i) % hash->capacity;
+static hash_size_t find_slot(struct hash hash, hash_size_t hval) {
+  struct hash_entry *entry = hash.entry;
+  size_t pos = hval % hash.capacity;
+  for (hash_size_t i = 1; entry[pos].type == hash_valid; i++) {
+    pos = (pos + i * i) % hash.capacity;
   }
   return pos;
 }
@@ -38,7 +46,7 @@ static void relocate(struct hash *hash, hash_size_t pos) {
   struct hash_entry *entry = hash->entry;
   struct hash_entry temp = entry[pos];
   entry[pos].type = hash_empty;
-  hash_size_t h = hash_calc(entry[pos].key) % hash->capacity;
+  hash_size_t h = calculate(entry[pos].key.data) % hash->capacity;
   for (size_t i = 1; entry[h].type == hash_rehashed; i++) {
     h = (h + i * i) % hash->capacity;
   }
@@ -73,6 +81,9 @@ static void rehash(struct hash *hash) {
 
 static bool grow(struct hash *hash) {
   size_t new_capacity = hash->capacity + (hash->capacity / 2);
+  if (new_capacity == 0) {
+    new_capacity = 4;
+  }
   size_t realloc_size = new_capacity * sizeof(struct hash_entry);
   void *new_data = memory_realloc(hash->entry, realloc_size);
   if (new_data == NULL) {
@@ -82,90 +93,80 @@ static bool grow(struct hash *hash) {
   hash->entry = new_data;
   for (size_t i = hash->capacity; i < new_capacity; i++) {
     hash->entry[i].type = hash_empty;
+    stack_init(&hash->entry[i].key);
+    hash->entry[i].data_offset = 0;
   }
   hash->capacity = new_capacity;
   return true;
 }
 
-bool hash_init(struct hash *hash, hash_size_t capacity) {
+void hash_init(struct hash *hash) {
   hash->size = 0;
-  hash->capacity = capacity;
-  if (hash->capacity == 0) {
-    hash->capacity = 16;
-  }
-  size_t alloc_size = hash->capacity * sizeof(struct hash_entry);
-  hash->entry = memory_alloc(alloc_size);
-  if (hash->entry == NULL) {
-    throw(system, no_memory);
+  hash->capacity = 0;
+  hash->entry = null;
+}
+
+bool hash_find(struct hash hash, struct string key,
+               hash_size_t *index) {
+  struct hash_entry *entry = hash.entry;
+  hash_size_t hval = calculate(string_data(&key));
+  hash_size_t pos = find_key(hash, hval, key);
+  if (entry[pos].type != hash_valid) {
+    throw(hash, not_exist);
     return false;
   }
-  struct hash_entry *entry = hash->entry;
-  for (size_t i = 0; i < hash->capacity; i++) {
-    entry[i].type = hash_empty;
-  }
+  *index = pos;
   return true;
 }
 
-bool hash_insert(struct hash *hash, struct string *key, void **value,
-                 bool overwrite) {
+static stack_size_t ceil_to_max_align(stack_size_t size) {
+  enum { max_align = alignof(max_align_t) };
+  return (size + max_align - 1) / max_align * max_align;
+}
+
+bool hash_claim(struct hash *hash, struct string key,
+                hash_size_t *index) {
   struct hash_entry *entry = hash->entry;
-  hash_size_t h = hash_calc(*key);
-  hash_size_t pos = find_key(hash, h, *key);
+  hash_size_t hval = calculate(string_data(&key));
+  hash_size_t pos = find_key(*hash, hval, key);
   if (entry[pos].type == hash_valid) {
-    if (!overwrite) {
-      throw(hash, already_exist);
-      return false;
-    }
-    void *overwritten = entry[pos].value;
-    entry[pos].value = *value;
-    *value = overwritten;
-  } else {
-    if ((hash->size + 1) > hash->capacity * 3 / 4) {
-      try(grow(hash));
-      entry = hash->entry;
-      rehash(hash);
-      pos = find_slot(hash, h);
-    }
-    entry[pos].type = hash_valid;
-    entry[pos].key = *key;
-    string_init(key);
-    entry[pos].value = *value;
-    *value = NULL;
+    *index = pos;
+    return true;
+  }
+  if (should_grow(*hash)) {
+    try(grow(hash));
+    rehash(hash);
+    entry = hash->entry;
+    pos = find_slot(*hash, hval);
+  }
+  entry[pos].data_offset = ceil_to_max_align(key.size + 1);
+  stack_resize(&entry[pos].key, entry[pos].data_offset);
+  memory_copy(stack_head(&entry[pos].key, 0), string_data(&key),
+              key.size);
+  memory_fill(stack_head(&entry[pos].key, key.size),
+              entry[pos].data_offset - key.size, 0);
+  *index = pos;
+  return true;
+}
+
+void hash_insert(struct hash *hash, hash_size_t index) {
+  assert(index < hash->capacity);
+  if (hash->entry[index].type != hash_valid) {
     hash->size++;
+    hash->entry[index].type = hash_valid;
   }
-  return true;
 }
 
-bool hash_find(struct hash const *hash, struct string key,
-               void **value) {
+void hash_remove(struct hash *hash, hash_size_t index) {
   struct hash_entry *entry = hash->entry;
-  hash_size_t pos = find_key(hash, hash_calc(key), key);
-  if (entry[pos].type != hash_valid) {
-    throw(hash, not_exist);
-    return false;
+  assert(index < hash->capacity);
+  if (entry[index].type == hash_valid) {
+    hash->size--;
+    entry[index].type = hash_removed;
   }
-  *value = entry[pos].value;
-  return true;
-}
-
-bool hash_remove(struct hash *hash, struct string key, void **value) {
-  struct hash_entry *entry = hash->entry;
-  hash_size_t pos = find_key(hash, hash_calc(key), key);
-  if (entry[pos].type != hash_valid) {
-    throw(hash, not_exist);
-    return false;
-  }
-  if (value) {
-    *value = entry[pos].value;
-  }
-  entry[pos].type = hash_removed;
-  hash->size--;
-  return true;
 }
 
 void hash_destroy(struct hash *hash) {
   memory_dealloc(hash->entry);
-  hash->size = 0;
-  hash->capacity = 0;
-  hash->entry = NULL;
+  hash_init(hash);
 }

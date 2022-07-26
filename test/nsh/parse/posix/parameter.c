@@ -37,7 +37,7 @@ static void test_default() {
   assert(run_parameter("param:-hello}", &param));
   assert(strcmp(string_data(&param.name), "param") == 0);
   assert(param.type == parameter_default);
-  assert(param.substitute_null == true);
+  assert(param.null_as_unset == true);
   parameter_destroy(&param);
 }
 

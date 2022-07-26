@@ -5,7 +5,11 @@ project('nsh', 'c',
     'b_sanitize=address',
   ])
 
-add_project_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
+add_project_arguments(
+  ['-D_POSIX_C_SOURCE=200809L', '-D_GNU_SOURCE'],
+  language: 'c')
+
+cc = meson.get_compiler('c')
 
 include = include_directories('include')
 

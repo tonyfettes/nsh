@@ -1,5 +1,8 @@
 #include "nsh/string.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+
 enum string_type {
   string_heap,
   string_stack,
@@ -28,7 +31,6 @@ void string_destroy(struct string *string) {
   if (string_type(*string) == string_heap) {
     memory_dealloc(string->heap);
   }
-  string_init(string);
 }
 
 char *string_data(struct string *string) {
@@ -37,6 +39,14 @@ char *string_data(struct string *string) {
   } else {
     return string->heap;
   }
+}
+
+char *string_head(struct string *string, size_t size) {
+  return string_data(string) + size;
+}
+
+char *string_tail(struct string *string, size_t size) {
+  return string_data(string) + string->size - size;
 }
 
 bool string_alloc(struct string *string, string_size_t size) {
@@ -74,7 +84,7 @@ bool string_puts(struct string *string, char const *restrict s) {
   size_t size = strlen(s);
   try(string_alloc(string, size + 1));
   char *data = string_data(string);
-  memcpy(data, s, size + 1);
+  memcpy(data + string->size, s, size + 1);
   string->size += size;
   return true;
 }
@@ -88,10 +98,10 @@ bool string_putc(struct string *string, char ch) {
   return true;
 }
 
-bool string_append(struct string *string, struct string source) {
+bool string_concat(struct string *string, struct string source) {
   try(string_alloc(string, source.size + 1));
   char *t_data = string_data(string);
-  char *s_data = string_data(&source);
+  char const *s_data = string_data(&source);
   char *target = t_data + string->size;
   memcpy(target, s_data, source.size + 1);
   string->size += source.size;
@@ -100,7 +110,7 @@ bool string_append(struct string *string, struct string source) {
 
 bool string_assign(struct string *string, struct string source) {
   string_clear(string);
-  return string_append(string, source);
+  return string_concat(string, source);
 }
 
 void string_swap(struct string *string, struct string *other) {
@@ -128,4 +138,29 @@ bool string_equal(struct string left, struct string right) {
   char const *l_data = string_data(&left);
   char const *r_data = string_data(&right);
   return strncmp(l_data, r_data, left.size) == 0;
+}
+
+bool string_printf(struct string *string, char const *restrict format,
+                   ...) {
+  va_list args;
+  va_start(args, format);
+  size_t size = vsnprintf(NULL, 0, format, args);
+  va_end(args);
+  size++;
+  if (!string_alloc(string, size)) {
+    return false;
+  }
+  va_start(args, format);
+  bool ok;
+  ok = vsnprintf(string_tail(string, 0), size, format, args) < 0;
+  va_end(args);
+  return ok;
+}
+
+void string_place(struct string *string, char *restrict buffer,
+                  string_size_t size, string_size_t capacity) {
+  string_destroy(string);
+  string->capacity = capacity;
+  string->size = size;
+  string->heap = buffer;
 }

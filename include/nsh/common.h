@@ -12,6 +12,6 @@
 #include "nsh/memory.h"
 #include "nsh/assert.h"
 
-void ignore(void *none, ...);
+#define ignore(...) (void) (__VA_ARGS__)
 
 #endif // NSH_COMMON_H

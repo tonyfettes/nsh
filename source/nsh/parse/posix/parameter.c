@@ -30,15 +30,15 @@ bool parse_parameter(struct parse *restrict parse,
     }
     return parse_bump(parse);
   }
-  parameter->substitute_null = false;
+  parameter->null_as_unset = false;
   if (c == ':') {
-    parameter->substitute_null = true;
+    parameter->null_as_unset = true;
     try(parse_bump_peek(parse, &c));
   }
   switch (c) {
   case '#':
   case '%':
-    if (parameter->substitute_null) {
+    if (parameter->null_as_unset) {
       try(stack_push(&parse->diagnosis, &(struct diagnosis) {
         .level = diagnosis_error,
         // TODO:

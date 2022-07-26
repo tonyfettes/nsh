@@ -6,6 +6,7 @@
 #include "nsh/parse/posix/word.h"
 #include "nsh/command.h"
 
+// Parse both into `source` and `string`.
 bool parse_redirect_source(struct parse *parse, int *source,
                            struct string *string);
 

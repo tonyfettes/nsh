@@ -4,22 +4,15 @@
 #include "nsh/parse/posix/delimiter.h"
 #include "nsh/parse/posix/name.h"
 
-bool parse_while_loop(struct parse *parse, struct while_loop *while_loop) {
-  try(parse_block(parse, &while_loop->condition, keyword_do));
+bool parse_loop(struct parse *parse, struct loop *loop) {
+  try(parse_block(parse, &loop->condition, keyword_do));
   try(parse_linebreak(parse));
-  try(parse_block(parse, &while_loop->body, keyword_done));
+  try(parse_block(parse, &loop->body, keyword_done));
   return true;
 }
 
-bool parse_until_loop(struct parse *parse, struct until_loop *until_loop) {
-  try(parse_block(parse, &until_loop->condition, keyword_do));
-  try(parse_linebreak(parse));
-  try(parse_block(parse, &until_loop->body, keyword_done));
-  return true;
-}
-
-bool parse_for_loop(struct parse *parse, struct for_loop *for_loop) {
-  try(parse_name(parse, &for_loop->name));
+bool parse_for_in(struct parse *parse, struct for_in *for_in) {
+  try(parse_name(parse, &for_in->name));
   try(parse_linebreak(parse));
   char c;
   try(parse_peek(parse, &c));
@@ -37,7 +30,7 @@ bool parse_for_loop(struct parse *parse, struct for_loop *for_loop) {
     }
     try(parse_bump(parse));
     try(parse_blank(parse));
-    try(parse_block(parse, &for_loop->body, keyword_done));
+    try(parse_block(parse, &for_in->body, keyword_done));
     return true;
   }
   if (c == ';') {
@@ -45,7 +38,7 @@ bool parse_for_loop(struct parse *parse, struct for_loop *for_loop) {
     try(parse_linebreak(parse));
     // try(parse_expect(parse, "do"));
     try(parse_linebreak(parse));
-    try(parse_block(parse, &for_loop->body, keyword_done));
+    try(parse_block(parse, &for_in->body, keyword_done));
     return true;
   }
   if (c == 'i') {
@@ -67,7 +60,7 @@ bool parse_for_loop(struct parse *parse, struct for_loop *for_loop) {
     }
     try(parse_linebreak(parse));
     // try(parse_expect(parse, "do"));
-    try(parse_block(parse, &for_loop->body, keyword_done));
+    try(parse_block(parse, &for_in->body, keyword_done));
     return true;
   }
   return false;

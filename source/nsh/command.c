@@ -16,14 +16,11 @@ static void command_main_destroy(struct command *command) {
   case command_subshell:
     subshell_destroy(&command->subshell);
     break;
-  case command_while_loop:
-    while_loop_destroy(&command->while_loop);
+  case command_loop:
+    loop_destroy(&command->loop);
     break;
-  case command_until_loop:
-    until_loop_destroy(&command->until_loop);
-    break;
-  case command_for_loop:
-    for_loop_destroy(&command->for_loop);
+  case command_for_in:
+    for_in_destroy(&command->for_in);
     break;
   case command_function:
     function_destroy(command->function);
@@ -60,14 +57,11 @@ bool command_select(struct command *command, enum command_type type) {
     case command_subshell:
       subshell_clear(&command->subshell);
       break;
-    case command_while_loop:
-      while_loop_clear(&command->while_loop);
+    case command_loop:
+      loop_clear(&command->loop);
       break;
-    case command_until_loop:
-      until_loop_clear(&command->until_loop);
-      break;
-    case command_for_loop:
-      for_loop_clear(&command->for_loop);
+    case command_for_in:
+      for_in_clear(&command->for_in);
       break;
     case command_function:
       function_clear(command->function);
@@ -91,14 +85,11 @@ bool command_select(struct command *command, enum command_type type) {
     case command_subshell:
       brace_init(&command->brace);
       break;
-    case command_while_loop:
-      while_loop_init(&command->while_loop);
+    case command_loop:
+      loop_init(&command->loop);
       break;
-    case command_until_loop:
-      until_loop_init(&command->until_loop);
-      break;
-    case command_for_loop:
-      for_loop_init(&command->for_loop);
+    case command_for_in:
+      for_in_init(&command->for_in);
       break;
     case command_function:
       command->function = memory_alloc(sizeof(struct function));

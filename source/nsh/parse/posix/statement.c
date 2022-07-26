@@ -7,21 +7,29 @@
 bool parse_statement(struct parse *parse, struct statement *statement) {
   char c;
   while (true) {
-    struct pipeline pipeline;
-    pipeline_init(&pipeline);
-    try(parse_pipeline(parse, &pipeline));
-    try(stack_push(&statement->pipeline, &pipeline, sizeof(struct pipeline)));
-    enum keyword keyword;
-    if (pipeline_keyword(&pipeline, &keyword)) {
-      if (statement->pipeline.size == sizeof(struct pipeline)) {
-        return true;
-      }
-      try(stack_push(&parse->diagnosis, &(struct diagnosis) {
-        .level = diagnosis_error,
-      }, sizeof(struct diagnosis)));
+
+    try(stack_alloc(&statement->pipeline, sizeof(struct pipeline)));
+    struct pipeline *pipeline = stack_tail(&statement->pipeline, 0);
+    pipeline_init(pipeline);
+    if (!parse_pipeline(parse, pipeline)) {
+      pipeline_destroy(pipeline);
       return false;
     }
-    try(parse_peek(parse, &c));
+    enum keyword keyword;
+    if (pipeline_keyword(*pipeline, &keyword)) {
+      // `command && keyword` and `command || keyword` should always be
+      // invalid.
+      if (statement->pipeline.size != 0) {
+        parse_error(*parse, "Unexpected keyword `%s'",
+                    keyword_display(keyword));
+        return false;
+      }
+      return true;
+    }
+    assert(stack_bump(&statement->pipeline, sizeof(struct pipeline)));
+
+    try(parse_blank(parse));
+    parse_peek(parse, &c);
     assert(c != '|');
     switch (c) {
     case '&':
@@ -29,19 +37,17 @@ bool parse_statement(struct parse *parse, struct statement *statement) {
       switch (c) {
       case '&':
         try(parse_bump(parse));
-        if (pipeline.condition == pipeline_bang) {
-          pipeline.condition = pipeline_else;
+        if (pipeline->condition == pipeline_bang) {
+          pipeline->condition = pipeline_else;
         } else {
-          pipeline.condition = pipeline_then;
+          pipeline->condition = pipeline_then;
         }
         try(parse_linebreak(parse));
         continue;
-        break;
       default:
         statement->separator = statement_background;
         try(parse_linebreak(parse));
         return true;
-        break;
       }
       break;
     case ';':
@@ -51,10 +57,8 @@ bool parse_statement(struct parse *parse, struct statement *statement) {
       // Fall through.
     case '\n':
       return true;
-      break;
     default:
       continue;
-      break;
     }
   }
 }

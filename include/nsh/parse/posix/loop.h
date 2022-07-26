@@ -4,12 +4,8 @@
 #include "nsh/parse/posix/common.h"
 #include "nsh/loop.h"
 
-bool parse_while_loop(struct parse *parse,
-                      struct while_loop *while_loop);
+bool parse_loop(struct parse *parse, struct loop *loop);
 
-bool parse_until_loop(struct parse *parse,
-                      struct until_loop *until_loop);
-
-bool parse_for_loop(struct parse *parse, struct for_loop *for_loop);
+bool parse_for_in(struct parse *parse, struct for_in *for_in);
 
 #endif // NSH_PARSE_LOOP_H

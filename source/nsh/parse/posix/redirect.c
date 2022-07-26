@@ -3,6 +3,7 @@
 #include "nsh/parse/posix/delimiter.h"
 #include "nsh/parse/posix/word.h"
 #include "nsh/parse/posix/segment.h"
+#include "nsh/format.h"
 
 static bool parse_in_dup(struct parse *parse,
                          struct redirect *redirect) {
@@ -16,7 +17,7 @@ static bool parse_in_dup(struct parse *parse,
 static bool parse_in_heredoc(struct parse *parse,
                              struct redirect *redirect) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   redirect->type = redirect_heredoc;
   redirect->flags = 0;
   if (c == '-') {
@@ -48,7 +49,7 @@ static bool parse_in_out(struct parse *parse,
 static bool parse_in(struct parse *parse,
                      struct redirect *redirect) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   switch (c) {
   case '&':
     try(parse_bump(parse));
@@ -106,7 +107,7 @@ static bool parse_out_direct(struct parse *parse,
 static bool parse_out(struct parse *parse,
                       struct redirect *redirect) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   switch (c) {
   case '|':
     try(parse_bump(parse));
@@ -125,7 +126,7 @@ static bool parse_out(struct parse *parse,
 bool parse_redirect(struct parse *parse,
                     struct redirect *redirect) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   switch (c) {
   case '<':
     try(parse_bump(parse));
@@ -134,21 +135,19 @@ bool parse_redirect(struct parse *parse,
     try(parse_bump(parse));
     return parse_out(parse, redirect);
   default:
+    assert(c != '>' && c != '<');
     return false;
   }
 }
 
-bool parse_redirect_source(struct parse *parse,
-                           int *source, struct string *string) {
+bool parse_redirect_source(struct parse *parse, int *source,
+                           struct string *string) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   assert(isdigit(c));
-
   string_putc(string, c);
-
   unsigned int num = c - '0';
   bool overflow = false;
-
   try(parse_bump_peek(parse, &c));
   if (num != 0) {
     while (isdigit(c) && num <= UINT_MAX / 10) {
@@ -160,17 +159,14 @@ bool parse_redirect_source(struct parse *parse,
       try(parse_bump_peek(parse, &c));
     }
   }
-
+  // There should not be any spaces between file descriptor and
+  // following redirect operator.
   if (c == '<' || c == '>') {
     if (overflow) {
-      try(stack_push(&parse->diagnosis, &(struct diagnosis) {
-        .level = diagnosis_error,
-        .type = diagnosis_overflow_u,
-        .location = parse->location,
-        .overflow = {
-          .truncated.u = num
-        }
-      }, sizeof(struct diagnosis)));
+      parse_warn(*parse,
+                 "Redirect file descriptor overflows: " fs(
+                   string) "... truncated to %d",
+                 fa(string)(*string), num);
     }
     *source = num;
   } else {
@@ -182,7 +178,7 @@ bool parse_redirect_source(struct parse *parse,
 bool parse_redirect_list(struct parse *parse,
                          struct stack *redirect_stack) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   while (isdigit(c) || c == '<' || c == '>') {
     if (isdigit(c)) {
       struct string string;
@@ -201,7 +197,7 @@ bool parse_redirect_list(struct parse *parse,
         }, sizeof(struct diagnosis)));
         return false;
       }
-      try(parse_peek(parse, &c));
+      parse_peek(parse, &c);
       assert(c == '>' || c == '<');
     }
 
@@ -210,7 +206,7 @@ bool parse_redirect_list(struct parse *parse,
     try(parse_redirect(parse, &redirect));
     try(stack_push(redirect_stack, &redirect, sizeof(struct redirect)));
     try(parse_blank(parse));
-    try(parse_peek(parse, &c));
+    parse_peek(parse, &c);
   }
   return true;
 }

@@ -16,12 +16,7 @@ struct redirect {
     redirect_heredoc,
   } type;
   int flags;
-  union {
-    struct word target;
-    unsigned int descriptor;
-    struct string path;
-    struct string heredoc;
-  };
+  struct word target;
 };
 
 void redirect_init(struct redirect *redirect);
@@ -29,5 +24,8 @@ void redirect_init(struct redirect *redirect);
 void redirect_clear(struct redirect *redirect);
 
 void redirect_destroy(struct redirect *redirect);
+
+bool redirect_display(struct redirect const *redirect,
+                      struct string *target);
 
 #endif // NSH_REDIRECT_H

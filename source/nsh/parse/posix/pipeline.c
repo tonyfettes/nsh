@@ -5,7 +5,7 @@
 
 static bool parse_bang(struct parse *parse, struct pipeline *pipeline) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   if (c == '!') {
     pipeline->condition = pipeline_bang;
     try(parse_bump(parse));
@@ -20,23 +20,27 @@ bool parse_pipeline(struct parse *parse, struct pipeline *pipeline) {
   try(parse_blank(parse));
   char c;
   do {
-    struct command command;
-    command_init(&command);
-    try(parse_command(parse, &command));
-    if (command.type == command_keyword) {
+    try(stack_alloc(&pipeline->command, sizeof(struct command)));
+    struct command *command = stack_tail(&pipeline->command, 0);
+    command_init(command);
+    if (!parse_command(parse, command)) {
+      command_destroy(command);
+      return false;
+    }
+    if (command->type == command_keyword) {
+      // `command | keyword` should always be invalid.
       if (pipeline->command.size != 0) {
-        try(stack_push(&parse->diagnosis, &(struct diagnosis) {
-          .level = diagnosis_error,
-          .type = diagnosis_unexpected,
-          .location = parse->location,
-        }, sizeof(struct diagnosis)));
+        parse_error(*parse, "Unexpected keyword `%s'",
+                    keyword_display(command->keyword));
         return false;
       }
+      // If command is a keyword, then parse this pipeline as keyword.
       return true;
     }
-    try(stack_push(&pipeline->command, &command, sizeof(command)));
+    assert(stack_bump(&pipeline->command, sizeof(struct command)));
+
     try(parse_blank(parse));
-    try(parse_peek(parse, &c));
+    parse_peek(parse, &c);
     // Neither `|` nor `||`.
     if (c != '|') {
       break;

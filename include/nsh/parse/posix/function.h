@@ -5,6 +5,6 @@
 #include "nsh/function.h"
 
 bool parse_function(struct parse *parse, struct function *function,
-                    struct stack *redirect);
+                    struct redirect_list *redirect);
 
 #endif // NSH_PARSE_FUNCTION_H

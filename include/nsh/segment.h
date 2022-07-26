@@ -8,7 +8,6 @@
 
 struct segment {
   enum segment_type {
-    segment_none,
     segment_plain,
     segment_parameter,
     segment_command,
@@ -27,6 +26,6 @@ void segment_select(struct segment *segment, enum segment_type type);
 
 void segment_destroy(struct segment *segment);
 
-bool segment_expand(struct segment *segment);
+bool segment_expand(struct segment segment, struct string *target);
 
 #endif // NSH_SEGMENT_H

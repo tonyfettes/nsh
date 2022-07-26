@@ -6,10 +6,10 @@
 
 #define try(...) if (__VA_ARGS__) {} else return false
 
-struct error {
-  int const *category;
+extern struct error {
+  char const *(*category)(int code);
   int code;
-};
+} error;
 
 extern const int error_system;
 
@@ -28,7 +28,5 @@ enum error_system {
           error.code = error_##category_in##_##code_in)
 
 void throw_system(int error_code);
-
-extern struct error error;
 
 #endif // NSH_ERROR_H

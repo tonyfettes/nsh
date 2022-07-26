@@ -33,7 +33,7 @@ static bool parse_simple_component(struct parse *parse,
 bool parse_simple(struct parse *parse, struct simple *simple,
                   struct stack *redirect) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   assert(isspace(c) == false);
   bool ok = true;
   struct component component;

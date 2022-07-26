@@ -13,15 +13,16 @@ struct pipeline {
     pipeline_none, // `...`
     pipeline_bang, // `! ...`
   } condition;
-  // Stack of `struct command`.
   struct stack command;
 };
 
 void pipeline_init(struct pipeline *pipeline);
 
-bool pipeline_keyword(struct pipeline const *pipeline,
-                      enum keyword *keyword);
+bool pipeline_keyword(struct pipeline pipeline, enum keyword *keyword);
 
 void pipeline_destroy(struct pipeline *pipeline);
+
+bool pipeline_display(struct pipeline const *pipeline,
+                      struct string *target);
 
 #endif // NSH_PIPELINE_H

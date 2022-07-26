@@ -86,18 +86,17 @@ static inline bool handle_environment(struct parse *parse,
   return true;
 }
 
-bool parse_component(struct parse *parse, struct component *component, bool environment) {
+bool parse_component(struct parse *parse, struct component *component,
+                     bool environment) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   assert(c == '<' || c == '>' || !is_delimiter(parse, c));
 
   if (isdigit(c)) {
     struct string string;
     string_init(&string);
-
     int source;
     try(parse_redirect_source(parse, &source, &string));
-
     if (source != -1) {
       string_destroy(&string);
       component_select(component, component_redirect);
@@ -106,7 +105,7 @@ bool parse_component(struct parse *parse, struct component *component, bool envi
     } else {
       component_select(component, component_word);
       try(word_puts(&component->word, &string));
-      try(parse_peek(parse, &c));
+      parse_peek(parse, &c);
       if (!is_delimiter(parse, c)) {
         try(parse_word(parse, &component->word));
       }

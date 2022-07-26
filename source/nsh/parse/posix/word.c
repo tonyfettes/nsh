@@ -9,7 +9,7 @@
 static bool parse_single_quoted(struct parse *restrict parse,
                                 struct word *restrict word) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   while (c != '\'') {
     try(word_putc(word, c));
     try(parse_bump_peek(parse, &c));
@@ -22,7 +22,7 @@ static bool parse_double_quoted(struct parse *restrict parse,
                                 struct word *restrict word,
                                 char delimiter) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   struct segment segment;
   while (c != delimiter) {
     switch (c) {
@@ -107,7 +107,7 @@ bool parse_word_char(struct parse *parse, struct word *word,
 
 bool parse_word(struct parse *parse, struct word *word) {
   char c;
-  try(parse_peek(parse, &c));
+  parse_peek(parse, &c);
   assert(!is_operator(c));
   struct segment segment;
   segment_init(&segment);
@@ -120,5 +120,5 @@ bool parse_word(struct parse *parse, struct word *word) {
     parse_peek(parse, &c);
   } while (!is_delimiter(parse, c));
   segment_destroy(&segment);
-  return true;
+  return ok;
 }

@@ -10,15 +10,16 @@ struct statement {
     statement_background, // `&`
     statement_sequential, // `;`
   } separator;
-  // Stack of `struct pipeline`.
   struct stack pipeline;
 };
 
 void statement_init(struct statement *statement);
 
-bool statement_keyword(struct statement const *statement,
+bool statement_keyword(struct statement statement,
                        enum keyword *keyword);
+
+bool statement_parse(struct statement *statement, struct parse *parse);
 
 void statement_destroy(struct statement *statement);
 
-#endif // NSH_STATEMENT_H
+#endif /* NSH_STATEMENT_H */

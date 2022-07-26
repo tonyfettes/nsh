@@ -12,16 +12,16 @@ struct parameter {
     // ${name[:](-|=|?|+)word}
     parameter_default = '-',
     parameter_assign = '=',
-    parameter_indicate_null = '?',
-    parameter_alternative = '+',
+    parameter_indicate = '?',
+    parameter_alternate = '+',
     // ${#name}
     parameter_length,
-    // ${name(%|#)[(%|#)]pattern}
+    // ${name(%|%%|#|##)pattern}
     parameter_suffix = '%',
     parameter_prefix = '#',
   } type;
   union {
-    bool substitute_null;
+    bool null_as_unset;
     bool longest_match;
   };
   struct string name;
@@ -32,7 +32,8 @@ void parameter_init(struct parameter *parameter);
 
 bool is_special_parameter(char ch);
 
-bool parameter_expand(struct parameter *parameter, struct string *out);
+bool parameter_expand(struct parameter parameter,
+                      struct string *target);
 
 void parameter_destroy(struct parameter *parameter);
 

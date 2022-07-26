@@ -4,15 +4,15 @@
 extern char const *program;
 
 struct location {
-  char const *file;
   unsigned int line;
   unsigned int column;
+  char const *file;
   char const *function;
 };
 
-#define location() (struct location) {                                 \
-  .file = __FILE__,                                                    \
+#define locate() (struct location) {                                   \
   .line = __LINE__,                                                    \
+  .file = __FILE__,                                                    \
   .function = __func__,                                                \
 }
 

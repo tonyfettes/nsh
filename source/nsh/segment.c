@@ -39,21 +39,23 @@ void segment_destroy(struct segment *segment) {
   segment->type = segment_none;
 }
 
-bool segment_expand(struct segment *segment) {
-  switch (segment->type) {
+bool segment_expand(struct segment seg, struct string *target) {
+  switch (seg.type) {
   case segment_none:
+    assert(seg.type != segment_none);
+    break;
   case segment_plain:
+    if (!string_concat(target, seg.plain)) {
+      return false;
+    }
     break;
   case segment_parameter:
-    // string_init(&result);
-    // ok = parameter_expand(&segment->parameter, &result);
-    // string_destroy(&result);
-    // return ok;
-    todo("Parameter expansion");
+    if (!parameter_expand(seg.parameter, target)) {
+      return false;
+    }
     break;
   case segment_command:
     todo("Command substitution");
-    break;
   }
-  return false;
+  return true;
 }

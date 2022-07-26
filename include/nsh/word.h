@@ -4,32 +4,25 @@
 #include "nsh/common.h"
 #include "nsh/stack.h"
 #include "nsh/string.h"
+#include "nsh/parse.h"
 
 struct word {
-  enum word_type {
-    word_segment,
-    word_plain,
-    word_field,
-  } type;
   bool quoted;
-  union {
-    // Stack of `struct segment`.
-    struct stack segment;
-    struct string plain;
-    // Stack of `struct string`.
-    struct stack field;
-  };
+  // Stack of `struct segment`.
+  struct stack segment;
 };
 
 void word_init(struct word *word);
-
-void word_select(struct word *word, enum word_type type);
 
 void word_clear(struct word *word);
 
 void word_destroy(struct word *word);
 
-bool word_expand(struct word *word);
+// Expand `word`, push results to the end of `target`.
+bool word_expand(struct word word, struct string *target);
+
+bool word_split(struct word word, struct stack *target,
+                struct string delimiter);
 
 struct segment;
 

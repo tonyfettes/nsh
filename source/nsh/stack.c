@@ -2,18 +2,9 @@
 
 #include <string.h>
 
-enum { stack_capacity_min = 16 };
+#undef stack
 
-#undef stack_init
-#undef stack_clear
-#undef stack_destroy
-#undef stack_tail
-#undef stack_alloc
-#undef stack_bump
-#undef stack_push
-#undef stack_back
-#undef stack_fall
-#undef stack_data
+enum { stack_capacity_min = 16 };
 
 void stack_init(struct stack *stack) {
   stack->capacity = 0;
@@ -26,7 +17,7 @@ void stack_clear(struct stack *stack) {
 }
 
 void stack_destroy(struct stack *stack) {
-  // free(3p): If ptr is a null pointer, no action shall occur.
+  /* free(3p): If ptr is a null pointer, no action shall occur. */
   memory_dealloc(stack->data);
   stack_init(stack);
 }
@@ -36,8 +27,8 @@ void *stack_tail(struct stack *stack, stack_size_t size) {
 }
 
 bool stack_alloc(struct stack *stack, stack_size_t size) {
-  // Here `new_capacity` could overflow and loop forever, but having a 2
-  // gigabytes stack is already a problem in the first place.
+  /* Here `new_capacity` could overflow and loop forever, but having a 2
+     gigabytes stack is already a problem in the first place. */
   stack_size_t new_capacity = stack->capacity;
   if (new_capacity == 0) {
     new_capacity = stack_capacity_min;
@@ -64,8 +55,8 @@ bool stack_bump(struct stack *stack, stack_size_t size) {
   return true;
 }
 
-bool stack_push(struct stack *stack, void const *restrict source,
-                stack_size_t size) {
+bool stack_push(struct stack *stack,
+                     void const *restrict source, stack_size_t size) {
   try(stack_alloc(stack, size));
   void *target = stack_tail(stack, 0);
   memcpy(target, source, size);

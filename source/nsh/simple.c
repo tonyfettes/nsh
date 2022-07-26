@@ -14,16 +14,31 @@ void simple_clear(struct simple *simple) {
 }
 
 void simple_destroy(struct simple *simple) {
-  struct word *argument = simple->argument.data;
-  size_t size = simple->argument.size / sizeof(struct word);
-  for (size_t i = 0; i < size; i++) {
-    word_destroy(&argument[i]);
+  for (struct word *argument = stack_head(&simple->argument, 0);
+       argument != stack_tail(&simple->argument, 0); argument++) {
+    word_destroy(argument);
   }
   stack_destroy(&simple->argument);
-  struct environment *env = simple->environment.data;
-  size = simple->environment.size / sizeof(struct environment);
-  for (size_t i = 0; i < size; i++) {
-    environment_destroy(&env[i]);
+  for (struct environment *env = stack_head(&simple->environment, 0);
+       env != stack_tail(&simple->environment, 0); env++) {
+    environment_destroy(env);
   }
   stack_destroy(&simple->environment);
+}
+
+bool simple_display(struct simple simple, struct string *target) {
+  for (struct environment *env = stack_head(&simple.environment, 0);
+       env != stack_tail(&simple.environment, 0); env++) {
+    if (target->size) {
+      try(string_putc(target, ' '));
+    }
+    try(environment_display(env, target));
+  }
+  for (struct word *arg = stack_head(&simple.argument, 0);
+       arg != stack_head(&simple.argument, 0); arg++) {
+    if (!word_expand(*arg, target)) {
+      return false;
+    }
+  }
+  return true;
 }

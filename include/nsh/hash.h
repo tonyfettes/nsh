@@ -2,18 +2,20 @@
 #define NSH_HASH_H
 
 #include "nsh/string.h"
+#include <stdalign.h>
 
 typedef unsigned int hash_size_t;
 
 struct hash_entry {
-  enum {
+  enum hash_entry_type {
     hash_empty,
     hash_valid,
     hash_removed,
+    // Only used in rehashing.
     hash_rehashed,
   } type;
-  struct string key;
-  void *value;
+  stack_size_t data_offset;
+  struct stack key;
 };
 
 struct hash {
@@ -27,17 +29,32 @@ enum error_hash {
   error_hash_already_exist,
 };
 
-extern const int error_hash;
+char const *error_hash(int code);
 
-bool hash_init(struct hash *hash, hash_size_t capacity);
+void hash_init(struct hash *hash);
 
-bool hash_insert(struct hash *hash, struct string *key, void **value,
-                 bool overwrite);
+bool hash_find(struct hash hash, struct string key, hash_size_t *index);
 
-bool hash_find(struct hash const *hash, struct string key,
-               void **value);
+bool hash_claim(struct hash *hash, struct string key,
+                hash_size_t *index);
 
-bool hash_remove(struct hash *hash, struct string key, void **value);
+void *hash_head(struct hash *hash, hash_size_t index,
+                stack_size_t size);
+
+void *hash_tail(struct hash *hash, hash_size_t index,
+                stack_size_t size);
+
+bool hash_alloc(struct hash *hash, hash_size_t index,
+                stack_size_t size);
+
+bool hash_reserve(struct hash *hash, hash_size_t index,
+                  stack_size_t size);
+
+bool hash_bump(struct hash *hash, hash_size_t index, stack_size_t size);
+
+void hash_insert(struct hash *hash, hash_size_t index);
+
+void hash_remove(struct hash *hash, hash_size_t index);
 
 void hash_destroy(struct hash *hash);
 

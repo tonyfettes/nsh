@@ -2,6 +2,7 @@
 #define NSH_KEYWORD_H
 
 #include "nsh/string.h"
+#include "nsh/parse.h"
 
 enum keyword {
   keyword_case,
@@ -23,5 +24,7 @@ enum keyword {
 };
 
 enum keyword keyword_from(struct string string);
+
+char const *keyword_display(enum keyword keyword);
 
 #endif // NSH_KEYWORD_H
