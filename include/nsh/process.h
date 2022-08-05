@@ -3,11 +3,12 @@
 
 #include "nsh/common.h"
 #include "nsh/stack.h"
-#include "nsh/simple.h"
 #include "nsh/file.h"
+#include "nsh/simple.h"
 
 struct process {
   pid_t pid;
+  int fd;
 };
 
 struct program {
@@ -33,11 +34,11 @@ struct group {
 
 void group_init(struct group *group);
 
-bool group_spawn(struct group *group, struct string path,
-                 struct simple simple, struct stack redirect,
-                 struct pipe *pipe);
+bool group_spawn(struct group *group, struct string directory,
+                 struct string path, struct simple simple,
+                 struct stack redirect, struct pipe *pipe);
 
-bool group_fork(struct group *group, bool (*func)(void *data),
+bool group_fork(struct group *group, int (*func)(void *data),
                 void *data, struct stack redirect, struct pipe *pipe);
 
 void group_destroy(struct group *group);

@@ -3,6 +3,7 @@
 
 #include "nsh/stack.h"
 #include "nsh/keyword.h"
+#include "nsh/file.h"
 
 struct pipeline {
   // Condition operator that suffixes (`&&` and `||`) or prefixes (`!`)
@@ -13,6 +14,7 @@ struct pipeline {
     pipeline_none, // `...`
     pipeline_bang, // `! ...`
   } condition;
+  bool expanded;
   struct stack command;
 };
 
@@ -24,5 +26,10 @@ void pipeline_destroy(struct pipeline *pipeline);
 
 bool pipeline_display(struct pipeline const *pipeline,
                       struct string *target);
+
+bool pipeline_expand(struct pipeline pipeline, struct pipeline *target);
+
+bool pipeline_execute(struct pipeline pipeline, struct context *context,
+                      struct pipe *pipe);
 
 #endif // NSH_PIPELINE_H

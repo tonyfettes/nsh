@@ -22,6 +22,7 @@ struct variable {
     long integer;
     double floating;
     struct string string;
+    // Stack of `struct variable`.
     struct stack array;
   };
 };
@@ -45,22 +46,18 @@ void assignment_init(struct assignment *assignment);
 
 void assignment_destroy(struct assignment *assignment);
 
-struct variable_table {
-  struct hash hash;
+struct environment {
+  struct string name;
+  struct string value;
 };
 
-void variable_table_init(struct variable_table *table);
+void environment_init(struct environment *environment);
 
-void variable_table_import(struct variable_table *table);
+void environment_clear(struct environment *environment);
 
-void variable_table_export(struct variable_table *table);
+void environment_destroy(struct environment *environment);
 
-void variable_table_find(struct variable_table *table,
-                         struct string name, struct string *value);
-
-void variable_table_insert(struct variable_table *table,
-                           struct string name, struct string value);
-
-void variable_table_destroy(struct variable_table *table);
+bool assignment_expand(struct assignment assignment,
+                       struct environment *environment);
 
 #endif // NSH_VARIABLE_H

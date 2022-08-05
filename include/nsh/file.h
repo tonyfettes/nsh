@@ -9,6 +9,8 @@ struct file {
   int fd;
 };
 
+void file_init(struct file *file);
+
 bool file_open(struct file *file, struct string path, int flags,
                mode_t mode);
 
@@ -20,15 +22,9 @@ struct file_stdio {
   struct file err;
 };
 
-static struct file_stdio const file_stdio = {
-  .in = { STDIN_FILENO },
-  .out = { STDOUT_FILENO },
-  .err = { STDERR_FILENO },
-};
-
 struct pipe {
-  struct file read;
-  struct file write;
+  struct file *read;
+  struct file *write;
 };
 
 bool pipe_open(struct pipe *pipe);

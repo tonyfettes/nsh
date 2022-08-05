@@ -21,11 +21,7 @@ struct builtin_analysis {
 };
 
 struct builtin {
-  bool (*analyze)(struct stack argument,
-                  struct builtin_analysis *analysis);
-  int (*simulate)(struct stack argument, struct stack environment,
-                  struct file_stdio stdio);
-  int (*main)(struct simple simple, struct file_stdio stdio);
+  int (*main)(struct context *context, struct simple simple);
 };
 
 extern struct hash builtin_table;

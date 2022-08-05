@@ -7,6 +7,10 @@
 #include "nsh/block.h"
 #include "nsh/job.h"
 
+enum execute_flags {
+  execute_subshell = 1 << 0,
+};
+
 bool execute_pipeline(struct stack *job, struct pipeline pipeline,
                       struct pipe *pipe);
 

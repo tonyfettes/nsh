@@ -2,6 +2,8 @@
 #define NSH_STACK_H
 
 #include <stdbool.h>
+#include <stdalign.h>
+#include <stddef.h>
 
 typedef unsigned int stack_size_t;
 
@@ -35,6 +37,9 @@ bool stack_resize(struct stack *stack, stack_size_t size);
 
 // Increase `stack->size` by `size`, realloc if necessary.
 bool stack_bump(struct stack *stack, stack_size_t size);
+
+// Deep-copy the content in `source` to `stack`.
+bool stack_assign(struct stack *stack, struct stack source);
 
 // Copy `[source, source + size)` to the space right after the tail of
 // the `stack`, and increase `stack->size`.

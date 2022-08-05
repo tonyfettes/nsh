@@ -18,6 +18,7 @@ void track_init(struct track *track);
 void track_destroy(struct track *track);
 
 struct parse {
+  struct context *context;
   // Stack of `struct parse_track`.
   struct stack track;
   // Location of read head in original text.

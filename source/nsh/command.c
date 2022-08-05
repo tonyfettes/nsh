@@ -1,6 +1,8 @@
 #include "nsh/command.h"
 
 #include "nsh/function.h"
+#include "nsh/context.h"
+#include "nsh/block.h"
 
 static void command_main_destroy(struct command *command) {
   switch (command->type) {
@@ -113,4 +115,70 @@ void command_destroy(struct command *command) {
     redirect_destroy(&redirect[i]);
   }
   stack_destroy(&command->redirect);
+}
+
+bool command_expand(struct command command, struct command *target) {
+  assert(!command.expanded);
+  command_clear(target);
+  switch (command.type) {
+  case command_none:
+  case command_keyword:
+    break;
+  case command_simple:
+    if (!command_select(target, command_simple)) {
+      return false;
+    }
+    return simple_expand(command.simple, &target->simple);
+  case command_brace:
+  case command_subshell:
+  case command_loop:
+  case command_for_in:
+  case command_function:
+    todo("Expansion of command other than simple");
+    break;
+  }
+  target->expanded = true;
+  return true;
+}
+
+bool command_execute(struct command command, struct context *context,
+                     struct pipe *pipe) {
+  assert(command.expanded);
+  switch (command.type) {
+  case command_none:
+    assert(command.type != command_none);
+    break;
+  case command_keyword:
+    assert(command.type != command_keyword);
+    break;
+  case command_simple:
+    return simple_execute(command.simple, context, command.redirect,
+                          pipe);
+  case command_brace:
+    break;
+  case command_subshell:
+    return block_execute(command.subshell.body, context, command.redirect, pipe);
+  case command_loop:
+    break;
+  case command_for_in:
+    break;
+  case command_function: {
+    struct string name;
+    string_init(&name);
+    if (!word_expand(command.function->name, &name)) {
+      string_destroy(&name);
+      return false;
+    }
+    hash_size_t index;
+    if (!hash_find(context->function, name, &index)) {
+      if (!hash_claim(&context->function, name, &index)) {
+        string_destroy(&name);
+        return false;
+      }
+    }
+    struct command *body = hash_head(&context->function, index, 0);
+    *body = command.function->body;
+  } break;
+  }
+  return true;
 }

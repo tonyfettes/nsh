@@ -2,7 +2,6 @@
 #include "nsh/segment.h"
 #include "nsh/user.h"
 #include "nsh/file.h"
-#include "nsh/execute/command.h"
 #include <sys/mman.h>
 
 void word_init(struct word *word) {

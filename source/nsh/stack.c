@@ -1,6 +1,10 @@
 #include "nsh/stack.h"
+#include "nsh/memory.h"
+#include "nsh/assert.h"
+#include "nsh/error.h"
 
 #include <string.h>
+#include <errno.h>
 
 #undef stack
 
@@ -17,7 +21,6 @@ void stack_clear(struct stack *stack) {
 }
 
 void stack_destroy(struct stack *stack) {
-  /* free(3p): If ptr is a null pointer, no action shall occur. */
   memory_dealloc(stack->data);
   stack_init(stack);
 }
@@ -40,7 +43,6 @@ bool stack_alloc(struct stack *stack, stack_size_t size) {
     void *allocated = memory_realloc(stack->data, new_capacity);
     if (allocated == NULL) {
       assert(errno == ENOMEM);
-      throw(system, no_memory);
       return false;
     }
     stack->data = allocated;
@@ -52,6 +54,20 @@ bool stack_alloc(struct stack *stack, stack_size_t size) {
 bool stack_bump(struct stack *stack, stack_size_t size) {
   try(stack_alloc(stack, size));
   stack->size += size;
+  return true;
+}
+
+bool stack_assign(struct stack *stack, struct stack source) {
+  if (stack->size != 0) {
+    stack_destroy(stack);
+  }
+  *stack = source;
+  stack->data = memory_alloc(source.capacity);
+  if (stack->data == NULL) {
+    assert(errno == ENOMEM);
+    throw_system(errno);
+    return false;
+  }
   return true;
 }
 

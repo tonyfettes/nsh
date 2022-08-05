@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "nsh/parse.h"
+#include "nsh/context.h"
 
 int main(int argc, char const *argv[]) {
   (void) argc;
@@ -30,6 +31,14 @@ int main(int argc, char const *argv[]) {
     // Executing...
     fprintf(stdout, "> ");
   }
+
+  context_init(&context);
+  while (true) {
+    if (!context_poll(&context)) {
+      // diagnosis.
+    }
+  }
+  context_destroy(&context);
 
   return EXIT_SUCCESS;
 }

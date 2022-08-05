@@ -87,7 +87,7 @@ static bool grow(struct hash *hash) {
   size_t realloc_size = new_capacity * sizeof(struct hash_entry);
   void *new_data = memory_realloc(hash->entry, realloc_size);
   if (new_data == NULL) {
-    throw(system, no_memory);
+    throw_system(errno);
     return false;
   }
   hash->entry = new_data;
@@ -104,6 +104,27 @@ void hash_init(struct hash *hash) {
   hash->size = 0;
   hash->capacity = 0;
   hash->entry = null;
+}
+
+bool hash_assign(struct hash *hash, struct hash source) {
+  if (hash->entry) {
+    hash_destroy(hash);
+  }
+  size_t alloc_size = source.capacity * sizeof(struct hash_entry);
+  hash->entry = memory_alloc(alloc_size);
+  if (hash->entry == NULL) {
+    throw_system(errno);
+    return false;
+  }
+  for (hash_size_t i = 0; i < source.capacity; i++) {
+    hash->entry[i].type = source.entry[i].type;
+    stack_init(&hash->entry[i].key);
+    if (!stack_assign(&hash->entry[i].key, source.entry[i].key)) {
+      return false;
+    }
+    hash->entry[i].data_offset = source.entry[i].data_offset;
+  }
+  return true;
 }
 
 bool hash_find(struct hash hash, struct string key,

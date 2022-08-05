@@ -19,6 +19,7 @@ struct command {
     command_for_in,
     command_function,
   } type;
+  bool expanded;
   union {
     enum keyword keyword;
     struct simple simple;
@@ -39,5 +40,10 @@ void command_clear(struct command *command);
 bool command_select(struct command *command, enum command_type type);
 
 void command_destroy(struct command *command);
+
+bool command_expand(struct command command, struct command *target);
+
+bool command_execute(struct command command, struct context *context,
+                     struct pipe *pipe);
 
 #endif // NSH_COMMAND_H

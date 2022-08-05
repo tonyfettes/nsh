@@ -33,6 +33,8 @@ char const *error_hash(int code);
 
 void hash_init(struct hash *hash);
 
+bool hash_assign(struct hash *hash, struct hash source);
+
 bool hash_find(struct hash hash, struct string key, hash_size_t *index);
 
 bool hash_claim(struct hash *hash, struct string key,

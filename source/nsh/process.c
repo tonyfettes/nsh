@@ -1,12 +1,16 @@
 #include "nsh/process.h"
+#include "nsh/variable.h"
+#include "nsh/context.h"
 
 #include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 void group_init(struct group *group) {
   group->foreground = false;
-  group->leader.pid = -1;
+  group->leader.fd = -1;
   stack_init(&group->member);
 }
 
@@ -45,6 +49,11 @@ static bool fact_close(fact_t *fact, int fd) {
 
 static bool fact_tcsetpgrp(fact_t *fact) {
   int rc = posix_spawn_file_actions_addtcsetpgrp_np(fact, STDIN_FILENO);
+  return (rc == 0) ? true : (throw_system(rc), false);
+}
+
+static bool fact_chdir(fact_t *fact, const char *directory) {
+  int rc = posix_spawn_file_actions_addchdir_np(fact, directory);
   return (rc == 0) ? true : (throw_system(rc), false);
 }
 
@@ -160,32 +169,34 @@ static bool setup_fact_handle_path(fact_t *fact, struct stack *open,
   return true;
 }
 
-static bool setup_fact(fact_t *fact,
-                       struct stack redirect_stack,
-                       struct pipe *pipe,
-                       bool control) {
-  if (control) {
+static bool setup_fact(fact_t *fact, struct string directory,
+                       struct stack redirect_stack, struct pipe *pipe,
+                       bool foreground) {
+  if (context.option.job.control && foreground) {
     try(fact_tcsetpgrp(fact));
   }
-  if (pipe->read.fd != -1) {
-    try(fact_dup2(fact, pipe->read.fd, STDIN_FILENO));
-    try(fact_close(fact, pipe->read.fd));
-    pipe->read.fd = -1;
+  if (directory.size) {
+    try(fact_chdir(fact, string_data(&directory)));
   }
-  if (pipe->write.fd != -1) {
-    try(fact_dup2(fact, pipe->write.fd, STDOUT_FILENO));
-    try(fact_close(fact, pipe->write.fd));
-    pipe->write.fd = -1;
+  if (pipe->read->fd != -1) {
+    try(fact_dup2(fact, pipe->read->fd, STDIN_FILENO));
+    try(fact_close(fact, pipe->read->fd));
+    pipe->read->fd = -1;
+  }
+  if (pipe->write->fd != -1) {
+    try(fact_dup2(fact, pipe->write->fd, STDOUT_FILENO));
+    try(fact_close(fact, pipe->write->fd));
+    pipe->write->fd = -1;
   }
   struct stack open;
   stack_init(&open);
   if (!stack_push(&open, open_std, sizeof(open_std))) {
     return false;
   }
-  for (struct redirect
-       *redirect = stack_head(&redirect_stack, 0),
-       *tail = stack_tail(&redirect_stack, 0);
-       redirect != tail; redirect++) {
+  struct redirect *head = stack_head(&redirect_stack, 0);
+  struct redirect *tail = stack_tail(&redirect_stack, 0);
+  for (struct redirect *redirect = head; head != tail; redirect++) {
+    assert(redirect->expanded);
     switch (redirect->type) {
     case redirect_descriptor:
       try(setup_fact_handle_descriptor(fact, &open, *redirect));
@@ -202,8 +213,21 @@ static bool setup_fact(fact_t *fact,
   return true;
 }
 
-static bool setup_attr(attr_t *attr) {
-  int rc = posix_spawnattr_setflags(attr, POSIX_SPAWN_SETPGROUP);
+static bool setup_attr(attr_t *attr, pid_t pgroup) {
+  int rc;
+  if (context.option.job.control) {
+    rc = posix_spawnattr_setpgroup(attr, pgroup);
+    if (!rc) {
+      throw_system(rc);
+      return false;
+    }
+    rc = posix_spawnattr_setflags(attr, POSIX_SPAWN_SETPGROUP);
+    if (!rc) {
+      throw_system(rc);
+      return false;
+    }
+  }
+  rc = posix_spawnattr_setflags(attr, POSIX_SPAWN_USEVFORK);
   return rc ? (throw_system(rc), false) : true;
 }
 
@@ -226,12 +250,12 @@ static bool setup_argv(struct stack *argp, struct simple simple) {
 }
 
 static bool setup_envp(struct stack *envp, struct stack *envs,
-                       struct program program) {
+                       struct simple simple) {
   for (char **env = environ; *env; env++) {
     stack_push(envp, env, sizeof(char *));
   }
-  for (struct environment *in = stack_head(&program.environment, 0);
-       in != stack_tail(&program.environment, 0); in++) {
+  for (struct environment *in = stack_head(&simple.environment, 0);
+       in != stack_tail(&simple.environment, 0); in++) {
     // Allocate, initialize environment string as name=value format.
     if (!stack_alloc(envs, sizeof(struct string))) {
       return false;
@@ -272,9 +296,9 @@ static bool setup_envp(struct stack *envp, struct stack *envs,
   return stack_push(envp, &null, sizeof(char *));
 }
 
-bool group_spawn(struct group *group, struct string path,
-                 struct simple simple, struct stack redirect_stack,
-                 struct pipe *pipe) {
+bool group_spawn(struct group *group, struct string directory,
+                 struct string path, struct simple simple,
+                 struct stack redirect_stack, struct pipe *pipe) {
   if (!stack_alloc(&group->member, sizeof(struct process))) {
     return false;
   }
@@ -284,17 +308,21 @@ bool group_spawn(struct group *group, struct string path,
   bool ok = true;
   fact_t fact;
   try(fact_init(&fact));
-  bool fact_control = false;
-  if (group->foreground == true && group->leader.pid == -1) {
-    fact_control = true;
+  bool set_foreground = false;
+  pid_t pgroup = 0;
+  if (group->foreground == true &&
+      group->leader.pid == -1) {
+    set_foreground = true;
+  } else {
+    pgroup = group->leader.pid;
   }
-  if (!(ok = setup_fact(&fact, redirect_stack, pipe, fact_control))) {
+  if (!(ok = setup_fact(&fact, redirect_stack, pipe, set_foreground))) {
     goto return_fact;
   }
 
   struct stack argt;
   stack_init(&argt);
-  if (!(ok = setup_argv(&argt, program))) {
+  if (!(ok = setup_argv(&argt, simple))) {
     goto return_argv;
   }
   char *const *argv = stack_head(&argt, 0);
@@ -303,7 +331,7 @@ bool group_spawn(struct group *group, struct string path,
   stack_init(&envt);
   struct stack envs;
   stack_init(&envs);
-  if (!(ok = setup_envp(&envt, &envs, program))) {
+  if (!(ok = setup_envp(&envt, &envs, simple))) {
     goto return_envp;
   }
   char *const *envp = stack_head(&envt, 0);
@@ -312,15 +340,29 @@ bool group_spawn(struct group *group, struct string path,
   if (!(ok = attr_init(&attr))) {
     goto return_envp;
   }
-  if (!(ok = setup_attr(&attr))) {
-    goto return_envp;
+  if (!(ok = setup_attr(&attr, pgroup))) {
+    goto return_attr;
   }
 
-  ok = spawn(&process->pid, string_data(&program.path), &fact, &attr,
+  ok = spawn(&process->pid, string_data(&path), &fact, &attr,
              argv, envp);
+  if (!ok) {
+    goto return_attr;
+  }
+  
+  process->fd = syscall(SYS_pidfd_open, process->pid, 0);
+  if (process->fd == -1) {
+    throw_system(errno);
+    ok = false;
+    goto return_attr;
+  }
 
-  group->leader.pid = process->pid;
+  if (group->leader.pid == -1) {
+    group->leader.pid = process->pid;
+    group->leader.fd = process->fd;
+  }
 
+return_attr:
   attr_destroy(&attr);
 
 return_envp:

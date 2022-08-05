@@ -15,8 +15,15 @@ struct redirect {
     // `<<`, `<<-` (O_TRUNC)
     redirect_heredoc,
   } type;
+  // O_*
   int flags;
-  struct word target;
+  bool expanded;
+  union {
+    struct word target;
+    int descriptor;
+    struct string path;
+    struct string heredoc;
+  };
 };
 
 void redirect_init(struct redirect *redirect);
@@ -24,6 +31,8 @@ void redirect_init(struct redirect *redirect);
 void redirect_clear(struct redirect *redirect);
 
 void redirect_destroy(struct redirect *redirect);
+
+bool redirect_expand(struct redirect redirect, struct redirect *target);
 
 bool redirect_display(struct redirect const *redirect,
                       struct string *target);

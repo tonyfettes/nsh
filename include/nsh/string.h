@@ -32,10 +32,6 @@ char *string_head(struct string *string, size_t size);
 
 char *string_tail(struct string *string, size_t size);
 
-char const *string_head_const(struct string const *string, size_t size);
-
-char const *string_tail_const(struct string const *string, size_t size);
-
 // Allocate `size` bytes of space after the end of the string.
 bool string_alloc(struct string *string, string_size_t size);
 
@@ -51,6 +47,7 @@ bool string_concat(struct string *string, struct string source);
 bool string_append(struct string *string, struct string source,
                    string_size_t from, string_size_t to);
 
+// Insert `ch'.
 bool string_intc(struct string *string, string_size_t position,
                  char ch);
 
@@ -94,6 +91,8 @@ bool string_vprintf(struct string *string, char const *restrict format,
 
 void string_place(struct string *string, char *restrict buffer,
                   string_size_t size, string_size_t capacity);
+
+bool string_reserve(struct string *string, string_size_t capacity);
 
 #define string_format_specifier "%s"
 #define string_format_argument(var) string_data(&(var))
